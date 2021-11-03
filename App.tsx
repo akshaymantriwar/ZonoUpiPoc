@@ -7,20 +7,53 @@ import {
   TextInput,
   TouchableOpacity,
   NativeModules,
+  Image,
 } from 'react-native';
+import RNAndroidInstalledApps from 'react-native-android-installed-apps-unblocking';
 
 const UPI = NativeModules.UPI;
+const upiApps = ['PhonePe', 'Paytm', 'GPay'];
 
-export default class App extends Component<any, {amount: string}> {
+export default class App extends Component<any, {amount: string; apps: any[]}> {
   constructor(props: any) {
     super(props);
-    this.state = {amount: ''};
+    this.state = {amount: '', apps: []};
+    RNAndroidInstalledApps.getNonSystemApps()
+      .then((apps: any[]) => {
+        return this.setState({
+          apps: apps
+            .filter(a => upiApps.includes(a.appName))
+            .map((a: any) => {
+              return {
+                appName: a.appName,
+                icon: a.icon,
+              };
+            }),
+        });
+      })
+      .catch((error: any) => {
+        alert(error);
+      });
   }
-
-  openLink = async () => {
+  openLink = async (appName?: string) => {
     let {amount} = this.state;
+    let urlPrefix = 'upi://pay';
+    switch (appName) {
+      case 'PhonePe':
+        urlPrefix = 'phonepe://pay';
+        break;
+      case 'GPay':
+        urlPrefix = 'tez://upi/pay';
+        break;
+      case 'Paytm':
+        urlPrefix = 'paytmmp://pay';
+        break;
+      default:
+        break;
+    }
     let UpiUrl =
-      'upi://pay?pa=googlepay@axisbank&pn=GooglePay&mc=&tr=' +
+      urlPrefix +
+      '?pa=gokwik@kaypay&pn=GooglePay&mc=&tr=' +
       this.makeid(17) +
       '&am=' +
       amount +
@@ -50,8 +83,32 @@ export default class App extends Component<any, {amount: string}> {
           onChangeText={amount => this.setState({amount})}
           value={this.state.amount}
         />
+
+        {this.state.apps.map((a: any) => {
+          console.log(`<Text style={styles.item}>${a.appName}</Text>`);
+          let base64Icon = 'data:image/png;base64,' + a.icon;
+          return (
+            <TouchableOpacity
+              style={styles.paymentButton}
+              onPress={() => {
+                this.openLink(a.appName);
+              }}
+              key={a.appName}>
+              <Image
+                style={{
+                  width: 20,
+                  height: 20,
+                }}
+                resizeMode="contain"
+                source={{uri: base64Icon}}
+              />
+
+              <Text style={{color: 'white'}}>{a.appName}</Text>
+            </TouchableOpacity>
+          );
+        })}
         <TouchableOpacity style={styles.paymentButton} onPress={this.openLink}>
-          <Text style={{color: 'white'}}>Make Payment</Text>
+          <Text style={{color: 'white'}}>Other Upi Apps</Text>
         </TouchableOpacity>
       </View>
     );
@@ -72,6 +129,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'red',
+    backgroundColor: 'grey',
+    flexDirection: 'row',
   },
 });
+function alert(error: any) {
+  throw new Error('Function not implemented.');
+}
